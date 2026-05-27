@@ -2,3 +2,8 @@
 build
 */.vscode
 */build
+HID/.vscode
+HID/build
+GUI/.vscode
+GUI/build
+
