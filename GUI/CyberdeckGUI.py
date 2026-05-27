@@ -1,14 +1,15 @@
 import sys
 import math
 import serial
-from PyQt6.QtWidgets import QApplication, QWidget
+from PyQt6.QtGui import QFont
 from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import QEasingCurve
 from PyQt6.QtGui import QPainter, QColor
 from PyQt6.QtCore import QPropertyAnimation
+from PyQt6.QtWidgets import QApplication, QWidget
 
 SERIAL_PORT = "/dev/ttyACM0"
 BAUD = 115200
-
 
 j1_button_down = False
 cap_status = 0
@@ -38,6 +39,14 @@ class RadialOverlay(QWidget):
         self.anim = QPropertyAnimation(self, b"windowOpacity")
         self.anim.setDuration(120)
 
+        self.dial_visible  = False
+        self.dial_mode = "SCROLL"
+        
+        self.dial_timer = QTimer()
+        self.dial_timer.setSingleShot(True)
+        self.dial_timer.timeout.connect(self.hide_dial_overlay)
+
+
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint
             | Qt.WindowType.WindowStaysOnTopHint
@@ -66,6 +75,7 @@ class RadialOverlay(QWidget):
     def _on_hidden(self):
         if self.windowOpacity() == 0.0:
             self.visible_overlay = False
+            self.dial_visible = False
 
 
     def move_to_bottom_center(self):
@@ -75,7 +85,7 @@ class RadialOverlay(QWidget):
         self.move(int(x), int(y))
 
     def paintEvent(self, event):
-        if not self.visible_overlay:
+        if not self.visible_overlay and not self.dial_visible:
             return
 
         painter = QPainter(self)
@@ -104,6 +114,60 @@ class RadialOverlay(QWidget):
 
             painter.drawText(int(x - 10), int(y + 5), labels[i])
 
+        if self.dial_visible:
+            small_radius = 45
+            small_x = 160
+            small_y = 160            
+
+            painter.setBrush(QColor(20, 20, 20, 220)) 
+            painter.setPen(Qt.PenStyle.NoPen)
+
+            painter.drawEllipse(
+                small_x - small_radius,
+                small_y - small_radius,
+                small_radius * 2,
+                small_radius * 2 
+            )
+
+            painter.setPen(QColor(255, 255, 255))
+            font = QFont()
+            font.setPointSize(10)
+            font.setBold(True)
+            
+            painter.setFont(font)
+
+            mode_text = ""
+
+            if self.dial_mode == "SCROLL":
+                mode_text = "SCR"
+            elif self.dial_mode == "VOLUME":
+                mode_text = "VOL"
+            elif self.dial_mode == "BRIGHTNESS":
+                mode_text = "BRT"
+
+            painter.drawText(
+                small_x - 18,
+                small_y + 5,
+                mode_text
+            )
+
+
+    def show_dial_overlay(self, mode):
+        self.dial_mode = mode
+        self.dial_visible = True
+
+        self.anim.stop()
+        self.setWindowOpacity(1.0)
+
+        self.dial_timer.start(1000)
+        self.update()
+
+    def hide_dial_overlay(self):
+        self.anim.stop()
+        self.anim.setStartValue(self.windowOpacity())
+        self.anim.setEndValue(0.0)
+        self.anim.start()
+
 
 app = QApplication(sys.argv)
 overlay = RadialOverlay()
@@ -130,10 +194,8 @@ def poll_serial():
                 cap_status = 0
 
             if "CENTER" in line:
-                #overlay.visible_overlay = False
                 overlay.hide_overlay()
             else:
-                #overlay.visible_overlay = True
                 overlay.show_overlay()
 
             if "BUTTON" not in line and not cap_status:
@@ -167,14 +229,11 @@ def poll_serial():
 
         if "DIAL:" in line:
             if "SCROLL" in line:
-                # Render GUI for SCROLL
-                print()
+                overlay.show_dial_overlay("SCROLL")
             elif "VOLUME" in line:
-                # Render GUI for VOLUME
-                print()
+                overlay.show_dial_overlay("VOLUME")
             elif "BRIGHTNESS" in line:
-                # Render GUI for BRIGHTNESS
-                print()
+                overlay.show_dial_overlay("BRIGHTNESS")
                 
             overlay.update()
 
