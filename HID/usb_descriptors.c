@@ -69,9 +69,20 @@ uint8_t const * tud_descriptor_device_cb(void) {
 // HID Report Descriptor
 //--------------------------------------------------------------------+
 
-uint8_t const desc_hid_report[] = {
-   TUD_HID_REPORT_DESC_KEYBOARD()
+enum {
+  REPORT_ID_KEYBOARD = 1,
+  REPORT_ID_MOUSE,
+  REPORT_ID_CONSUMER
 };
+
+uint8_t const desc_hid_report[] = {
+  TUD_HID_REPORT_DESC_KEYBOARD(HID_REPORT_ID(REPORT_ID_KEYBOARD)),
+  TUD_HID_REPORT_DESC_MOUSE(HID_REPORT_ID(REPORT_ID_MOUSE)),
+  TUD_HID_REPORT_DESC_CONSUMER(HID_REPORT_ID(REPORT_ID_CONSUMER))
+};
+// uint8_t const desc_hid_report[] = {
+//    TUD_HID_REPORT_DESC_KEYBOARD()
+// };
 
 // Invoked when received GET HID REPORT DESCRIPTOR
 // Application return pointer to descriptor
@@ -124,7 +135,7 @@ uint8_t const desc_configuration[] = {
       sizeof(desc_hid_report),
       0x83,     // HID IN endpoint
       16,
-      10)
+      5)
 };
 
 // Invoked when received GET CONFIGURATION DESCRIPTOR
@@ -152,8 +163,8 @@ enum {
 // array of pointer to string descriptors
 static char const *string_desc_arr[] = {
   (const char[]) { 0x09, 0x04 }, // 0: English
-  "TinyUSB",                     // 1: Manufacturer
-  "Cyberdeck HID",               // 2: Product
+  "FutureCo",                    // 1: Manufacturer
+  "Cyberdeck Input Device",      // 2: Product
   NULL,                          // 3: Serial
   "Cyberdeck CDC",               // 4: CDC Interface
   "Cyberdeck HID",               // 5: HID Interface

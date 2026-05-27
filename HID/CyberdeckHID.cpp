@@ -60,6 +60,61 @@ DebouncedButton dial_S1 = { dial_S1_pin };
 DebouncedButton dial_S2 = { dial_S2_pin };
 DebouncedButton dial_key = { dial_key_pin };
 
+enum DialStates {
+   SCROLL,
+   VOLUME,
+   BRIGHTNESS
+};
+DialStates dial_state = SCROLL;
+
+enum HIDReportID {
+   REPORT_ID_KEYBOARD = 1,
+   REPORT_ID_MOUSE    = 2,
+   REPORT_ID_CONSUMER = 3
+};
+
+void send_consumer(uint16_t key){
+   while (!tud_hid_ready()){
+      tud_task();
+   }
+   tud_hid_report(REPORT_ID_CONSUMER, &key, sizeof(key));
+   bool press_ok = tud_hid_report(REPORT_ID_CONSUMER, &key, sizeof(key));
+   printf("Press=%d\n", press_ok);
+
+   while (!tud_hid_ready()){
+      tud_task();
+   }
+   uint16_t release = 0;
+   bool release_ok = tud_hid_report(REPORT_ID_CONSUMER, &release, sizeof(key));
+   printf("Release=%d\n", release_ok);
+}
+
+void send_scroll(int8_t amount){
+   while (!tud_hid_ready()){
+      tud_task();
+   }
+
+   tud_hid_mouse_report(
+      REPORT_ID_MOUSE,
+      0,       // buttons
+      0,       // x
+      0,       // y
+      amount,  // wheel
+      0        // pan
+   );
+
+   sleep_ms(5);
+
+   tud_hid_mouse_report(
+      REPORT_ID_MOUSE,
+      0,       // buttons
+      0,       // x
+      0,       // y
+      0,       // wheel
+      0        // pan
+   );
+}
+
 
 // ---------------- J1 ----------------
 const int j1_up_pin =     14; // USE GP** NUMBER, NOT PIN NUMBER
@@ -106,7 +161,7 @@ void send_key(uint8_t key, bool shift = false){
    uint8_t modifier = shift ? KEYBOARD_MODIFIER_LEFTSHIFT : 0;
 
    uint8_t keycode[6] = { key };
-   tud_hid_keyboard_report(0, modifier, keycode);
+   tud_hid_keyboard_report(REPORT_ID_KEYBOARD, modifier, keycode);
 
    key_down = true;
    last_key = key;
@@ -211,11 +266,33 @@ int main() {
       
       if (A != last_A){
          if (last_A == 1 && A == 0){
-            if (B != A){
-               send_gui_action("DIAL: -ROT");
+            if (B == A){
+               send_gui_action("DIAL: +ROT");
+               switch (dial_state){
+                  case SCROLL:
+                     send_scroll(-1);
+                     break;
+                  case VOLUME:
+                     send_consumer(HID_USAGE_CONSUMER_VOLUME_INCREMENT);
+                     break;
+                  case BRIGHTNESS:
+                     send_consumer(HID_USAGE_CONSUMER_BRIGHTNESS_INCREMENT);
+                     break; 
+               }
             }
             else{
-               send_gui_action("DIAL: +ROT");
+               send_gui_action("DIAL: -ROT");
+               switch (dial_state){
+                  case SCROLL:
+                        send_scroll(1);
+                     break;
+                  case VOLUME:
+                     send_consumer(HID_USAGE_CONSUMER_VOLUME_DECREMENT);
+                     break;
+                  case BRIGHTNESS:
+                     send_consumer(HID_USAGE_CONSUMER_BRIGHTNESS_DECREMENT);
+                     break; 
+               }
             }
          }
          last_A = A;
@@ -225,7 +302,20 @@ int main() {
       bool key = dial_key.isHeld();
 
       if (key && !last_key){
-         send_gui_action("DIAL: BUTTON");
+         switch (dial_state){
+         case SCROLL:
+            dial_state = VOLUME;
+            send_gui_action("DIAL: VOLUME");
+            break;
+         case VOLUME:
+            dial_state = BRIGHTNESS;
+            send_gui_action("DIAL: BRIGHTNESS");
+            break;
+         case BRIGHTNESS:
+            dial_state = SCROLL;
+            send_gui_action("DIAL: SCROLL");
+            break;
+         }
       }
       last_key = key;
 
@@ -269,7 +359,7 @@ int main() {
       // -------- J2 --------
       if (key_down && (millis() - last_send_time > 30)){
          uint8_t empty[6] = {0};
-         tud_hid_keyboard_report(0, 0, empty);
+         tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, empty);
          key_down = false;
          last_key = 0;
       }
