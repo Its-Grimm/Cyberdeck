@@ -46,8 +46,6 @@ class Joystick {
          adc_gpio_init(_gpioY);
          gpio_set_dir(_gpioX, GPIO_IN);
          gpio_set_dir(_gpioY, GPIO_IN);
-         // pinMode(_xPin, INPUT);
-         // pinMode(_yPin, INPUT);
       }
 
       void update() {

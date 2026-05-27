@@ -15,14 +15,7 @@ static inline uint64_t millis() {
    return to_ms_since_boot(get_absolute_time());
 }
 
-// ---------------- J1 ----------------
-const int j1_up_pin =     14; // USE GP** NUMBER, NOT PIN NUMBER
-const int j1_down_pin =   15;
-const int j1_left_pin =   12;
-const int j1_right_pin =  13;
-const int j1_button_pin = 11;
-
-struct  DebouncedButton{
+struct DebouncedButton{
    int pin;
    int state = 1; // 1 = HIGH, 0 = LOW
    int lastReading = 1;
@@ -55,6 +48,26 @@ struct  DebouncedButton{
    }
 };
 
+
+// ------------ ROTARY DIAL ------------
+const int dial_key_pin = 5;
+const int dial_S1_pin = 4;
+const int dial_S2_pin = 3;
+
+static int last_A = -1;
+
+DebouncedButton dial_S1 = { dial_S1_pin };
+DebouncedButton dial_S2 = { dial_S2_pin };
+DebouncedButton dial_key = { dial_key_pin };
+
+
+// ---------------- J1 ----------------
+const int j1_up_pin =     14; // USE GP** NUMBER, NOT PIN NUMBER
+const int j1_down_pin =   15;
+const int j1_left_pin =   12;
+const int j1_right_pin =  13;
+const int j1_button_pin = 11;
+
 enum J1Direction {
    J1_CENTER,
    J1_BUTTON,
@@ -65,10 +78,10 @@ enum J1Direction {
 };
 J1Direction last_j1_sent = J1_CENTER;
 
-DebouncedButton j1_up = { j1_up_pin };
-DebouncedButton j1_down = { j1_down_pin };
-DebouncedButton j1_left = { j1_left_pin };
-DebouncedButton j1_right = { j1_right_pin };
+DebouncedButton j1_up =     { j1_up_pin };
+DebouncedButton j1_down =   { j1_down_pin };
+DebouncedButton j1_left =   { j1_left_pin };
+DebouncedButton j1_right =  { j1_right_pin };
 DebouncedButton j1_button = { j1_button_pin };
 
 
@@ -100,28 +113,28 @@ void send_key(uint8_t key, bool shift = false){
    last_send_time = millis();
 }
 
+
+// ---------------- GUI ----------------
 // Sends joystick direction to /dev/ttyACM0 through CDC
-void send_gui_dir(const char* dir){
+void send_gui_action(const char* action){
    if (!tud_cdc_connected()) return;
-  
-   tud_cdc_write_str("DIR:");
-   tud_cdc_write_str(dir);
+
+   tud_cdc_write_str(action);
    tud_cdc_write_str("\n");
    tud_cdc_write_flush(); 
 }
 
 const char* j1_dir_to_string(int dir){
    switch(dir){
-      case 0: return "J1: BUTTON";
-      case 1: return "J1: UP";
-      case 2: return "J1: DOWN";
-      case 3: return "J1: LEFT";
-      case 4: return "J1: RIGHT";
+      case 0:  return "J1: BUTTON";
+      case 1:  return "J1: UP";
+      case 2:  return "J1: DOWN";
+      case 3:  return "J1: LEFT";
+      case 4:  return "J1: RIGHT";
       default: return "J1: CENTER";
    }
 }
 
-// J2
 const char* j2_dir_to_string(Joystick::Direction8 dir) {
    switch(dir){
       case Joystick::UP:         return "J2: UP";
@@ -136,12 +149,14 @@ const char* j2_dir_to_string(Joystick::Direction8 dir) {
    }
 }
 
+
 int main() {
    // SETUP() {}
    stdio_init_all();
-
    board_init();
 
+
+   // USB CDC init
    tusb_rhport_init_t dev_init = {
       .role = TUSB_ROLE_DEVICE,
       .speed = TUSB_SPEED_AUTO
@@ -152,19 +167,29 @@ int main() {
       sleep_ms(10);
    }
 
+
+   // Rotary Dial
+   dial_key.begin();
+   dial_S1.begin();
+   dial_S2.begin();
+   last_A = gpio_get(dial_S1_pin);
+
+   // J1
    j1_up.begin();
    j1_down.begin();
    j1_left.begin();
    j1_right.begin();
    j1_button.begin();
 
+
+   // J2
    gpio_init(j2_button);
    gpio_set_dir(j2_button, GPIO_IN);
    gpio_pull_up(j2_button);
-
    joystick.begin();
 
-   // Watchdog example code
+
+   // Auto-reboot (watchdog) example code
    if (watchdog_caused_reboot()) {
       printf("Rebooted by Watchdog!\n");
    }
@@ -177,6 +202,33 @@ int main() {
    // LOOP() {}
    while (true) {
       tud_task();
+
+      // ------------ ROTARY DIAL ------------
+      dial_key.update();
+
+      int A = gpio_get(dial_S1_pin);
+      int B = gpio_get(dial_S2_pin);
+      
+      if (A != last_A){
+         if (last_A == 1 && A == 0){
+            if (B != A){
+               send_gui_action("DIAL: -ROT");
+            }
+            else{
+               send_gui_action("DIAL: +ROT");
+            }
+         }
+         last_A = A;
+      }
+
+      static bool last_key = false;
+      bool key = dial_key.isHeld();
+
+      if (key && !last_key){
+         send_gui_action("DIAL: BUTTON");
+      }
+      last_key = key;
+
 
       // -------- J1 --------
       j1_up.update();
@@ -203,15 +255,16 @@ int main() {
 
       if (current_j1 != last_j1_sent) {
          switch(current_j1){
-            case J1_BUTTON: send_gui_dir("J1: BUTTON"); break;
-            case J1_UP:     send_gui_dir("J1: UP");     break;
-            case J1_DOWN:   send_gui_dir("J1: DOWN");   break;
-            case J1_LEFT:   send_gui_dir("J1: LEFT");   break;
-            case J1_RIGHT:  send_gui_dir("J1: RIGHT");  break;
-            case J1_CENTER: send_gui_dir("J1: CENTER"); break;
+            case J1_BUTTON: send_gui_action("J1: BUTTON"); break;
+            case J1_UP:     send_gui_action("J1: UP");     break;
+            case J1_DOWN:   send_gui_action("J1: DOWN");   break;
+            case J1_LEFT:   send_gui_action("J1: LEFT");   break;
+            case J1_RIGHT:  send_gui_action("J1: RIGHT");  break;
+            case J1_CENTER: send_gui_action("J1: CENTER"); break;
          }
          last_j1_sent = current_j1;
       }
+
 
       // -------- J2 --------
       if (key_down && (millis() - last_send_time > 30)){
@@ -230,7 +283,7 @@ int main() {
       static Joystick::Direction8 last_sent_dir = Joystick::CENTER;
 
       if (dir != last_sent_dir) {
-         send_gui_dir(j2_dir_to_string(dir));
+         send_gui_action(j2_dir_to_string(dir));
          last_sent_dir = dir;
       }
 
@@ -252,7 +305,6 @@ int main() {
 
 
       if (armed_dir != Joystick::CENTER){
-         // TODO: This becomes it's own menu (with left right up down movement) for symbols (params/brackets, everything from below, everything else that's missing)
          // L-JOYSTICK BUTTON DOWN
          if (btn) {
             if (armed_dir == Joystick::UP)         send_key(0x38, false); // /
