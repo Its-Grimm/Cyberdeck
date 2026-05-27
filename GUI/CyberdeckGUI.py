@@ -163,9 +163,21 @@ def poll_serial():
                     current_block = 10
                 elif "LEFT" in line:
                     current_block = 11
-
-
             overlay.update()
+
+        if "DIAL:" in line:
+            if "SCROLL" in line:
+                # Render GUI for SCROLL
+                print()
+            elif "VOLUME" in line:
+                # Render GUI for VOLUME
+                print()
+            elif "BRIGHTNESS" in line:
+                # Render GUI for BRIGHTNESS
+                print()
+                
+            overlay.update()
+
 
 
 timer = QTimer()
