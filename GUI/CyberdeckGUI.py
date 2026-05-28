@@ -12,7 +12,7 @@ SERIAL_PORT = "/dev/ttyACM0"
 BAUD = 115200
 
 j1_button_down = False
-cap_status = 0
+caps_mode = 0
 radial_menu_colour = QColor(0, 0, 0, 160)
 pending_modifier = ""
 letters_per_block = [ # BUTTON UP
