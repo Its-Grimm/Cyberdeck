@@ -19,7 +19,7 @@ letters_per_block = [ # BUTTON UP
                      ['k', 'c', 'l', 'r', 'j', 's', 'h', 'd'],   # RIGHT
                      ['f', 'v', 'p', 'x', 'g', 'm', 'z', 'b'],   # LEFT
                       # CAPSLOCK
-                     ['w', ';', '.', '|', 'q', '\\', '*', ','],  # UP
+                     ['W', ';', '.', '|', 'Q', '\\', '*', ','],  # UP
                      ['O', 'Y', 'E', 'N', 'A', 'T', 'I', 'U'],   # down
                      ['K', 'C', 'L', 'R', 'J', 'S', 'H', 'D'],   # right
                      ['F', 'V', 'P', 'X', 'G', 'M', 'Z', 'B'],   # left
@@ -27,7 +27,9 @@ letters_per_block = [ # BUTTON UP
                      ['=', '+', '9', '-', '*', '/', '8', '%'],   # UP
                      ['UP', 'PGUP', 'RHT', 'PGDN', 'DWN', 'HOME', 'LFT', 'END'],  # DOWN
                      ['>', '}', ')', ']', '<', '[', '(', '{'],   # RIGHT
-                     ['0', '1', '2', '3', '4', '5', '6', '7']    # LEFT
+                     ['0', '1', '2', '3', '4', '5', '6', '7'],   # LEFT
+                     # J1 BUTTON UP
+                     ['BCK', '?', 'ENT', 'SPC', '$', 'TAB', '!']
                     ]
 
 class RadialOverlay(QWidget):
@@ -115,27 +117,6 @@ class RadialOverlay(QWidget):
             painter.drawText(int(x - 10), int(y + 5), labels[i])
 
         if self.dial_visible:
-            small_radius = 45
-            small_x = 160
-            small_y = 160            
-
-            painter.setBrush(QColor(20, 20, 20, 220)) 
-            painter.setPen(Qt.PenStyle.NoPen)
-
-            painter.drawEllipse(
-                small_x - small_radius,
-                small_y - small_radius,
-                small_radius * 2,
-                small_radius * 2 
-            )
-
-            painter.setPen(QColor(255, 255, 255))
-            font = QFont()
-            font.setPointSize(10)
-            font.setBold(True)
-            
-            painter.setFont(font)
-
             mode_text = ""
 
             if self.dial_mode == "SCROLL":
@@ -145,12 +126,36 @@ class RadialOverlay(QWidget):
             elif self.dial_mode == "BRIGHTNESS":
                 mode_text = "BRT"
 
-            painter.drawText(
-                small_x - 18,
-                small_y + 5,
-                mode_text
+            center_radius = 38
+
+            painter.setBrush(QColor(20, 20, 20, 240))
+            painter.setPen(Qt.PenStyle.NoPen)
+
+            painter.drawEllipse(
+                cx - center_radius,
+                cy - center_radius,
+                center_radius * 2,
+                center_radius * 2
             )
 
+            painter.setPen(QColor(255, 255, 255))
+
+            font = QFont()
+            font.setPointSize(12)
+            font.setBold(True)
+
+            painter.setFont(font)
+
+            text_rect_size = 80
+
+            painter.drawText(
+                cx - text_rect_size // 2,
+                cy - 15,
+                text_rect_size,
+                30,
+                Qt.AlignmentFlag.AlignCenter,
+                mode_text
+            ) 
 
     def show_dial_overlay(self, mode):
         self.dial_mode = mode
@@ -229,7 +234,8 @@ def poll_serial():
                 overlay.show_dial_overlay("VOLUME")
             elif "BRIGHTNESS" in line:
                 overlay.show_dial_overlay("BRIGHTNESS")
-                
+
+            current_block = 12                
             overlay.update()
 
 
