@@ -123,6 +123,13 @@ const int j1_left_pin =   12;
 const int j1_right_pin =  13;
 const int j1_button_pin = 11;
 
+const uint64_t DOUBLE_CLICK_MS = 200;
+
+bool caps_lock = false;
+
+uint64_t last_j1_click = 0;
+bool waiting_second_click = false;
+
 enum J1Direction {
    J1_CENTER,
    J1_BUTTON,
@@ -155,19 +162,51 @@ uint8_t last_key = 0;
 bool key_down = false;
 uint64_t last_send_time = 0;
 
-void send_key(uint8_t key, bool shift = false){
-   if (!tud_hid_ready()) return;
+void send_key(
+   uint8_t key,
+   bool shift = false,
+   bool control = false,
+   bool alt = false,
+   bool gui = false
+) {
+   if (!tud_hid_ready())
+      return;
 
-   uint8_t modifier = shift ? KEYBOARD_MODIFIER_LEFTSHIFT : 0;
+   // uint8_t modifier = shift ? KEYBOARD_MODIFIER_LEFTSHIFT : 0;
+
+   uint8_t modifier = 0;
+
+   if (shift){
+      modifier |= KEYBOARD_MODIFIER_LEFTSHIFT;
+   }
+
+   if (control){
+      modifier |= KEYBOARD_MODIFIER_LEFTCTRL;
+   }
+
+   if (alt){
+      modifier |= KEYBOARD_MODIFIER_LEFTALT;
+   }
+
+   if (gui){
+      modifier |= KEYBOARD_MODIFIER_LEFTGUI;
+   }
+
+   bool is_letter = (key >= 0x04 && key <= 0x1d);
+
+   if (caps_lock && is_letter) {
+      modifier ^= KEYBOARD_MODIFIER_LEFTSHIFT;
+   }
 
    uint8_t keycode[6] = { key };
+
    tud_hid_keyboard_report(REPORT_ID_KEYBOARD, modifier, keycode);
 
    key_down = true;
    last_key = key;
+
    last_send_time = millis();
 }
-
 
 // ---------------- GUI ----------------
 // Sends joystick direction to /dev/ttyACM0 through CDC
@@ -321,6 +360,7 @@ int main() {
 
 
       // -------- J1 --------
+
       j1_up.update();
       j1_down.update();
       j1_left.update();
@@ -331,26 +371,122 @@ int main() {
       bool down = j1_down.isHeld();
       bool left = j1_left.isHeld();
       bool right = j1_right.isHeld();
+
       bool btn = j1_button.isHeld();
 
-      // -------- J1 EVENT SYSTEM --------
+      // Double click toggle
+      static bool last_btn = false;
+      bool btn_pressed = (btn && !last_btn);
+      last_btn = btn;
+
+      if (btn_pressed) {
+         uint64_t now = millis();
+         if (waiting_second_click && (now - last_j1_click) < DOUBLE_CLICK_MS) {
+            caps_lock = !caps_lock;
+            waiting_second_click = false;
+         } 
+         else {
+            waiting_second_click = true;
+            last_j1_click = now;
+         }
+      }
+
+      // Double-click timeout
+      if (waiting_second_click && (millis() - last_j1_click) > DOUBLE_CLICK_MS) {
+         waiting_second_click = false;
+      }
+
+      //_Joystick directions
       J1Direction current_j1 = J1_CENTER;
 
-      if (btn)          current_j1 = J1_BUTTON;
-      else if (up)      current_j1 = J1_UP;
-      else if (down)    current_j1 = J1_DOWN;
-      else if (left)    current_j1 = J1_LEFT;
-      else if (right)   current_j1 = J1_RIGHT;
-      else              current_j1 = J1_CENTER;
+      bool button_down = btn;
+
+      // Allowing button down + up/down/right/left combos
+      if (up){
+         current_j1 = J1_UP;
+      }
+      else if (down){
+         current_j1 = J1_DOWN;
+      }
+      else if (left){
+         current_j1 = J1_LEFT;
+      }
+      else if (right){
+         current_j1 = J1_RIGHT;
+      }
+      else{
+         current_j1 = J1_CENTER;
+      }
 
       if (current_j1 != last_j1_sent) {
-         switch(current_j1){
-            case J1_BUTTON: send_gui_action("J1: BUTTON"); break;
-            case J1_UP:     send_gui_action("J1: UP");     break;
-            case J1_DOWN:   send_gui_action("J1: DOWN");   break;
-            case J1_LEFT:   send_gui_action("J1: LEFT");   break;
-            case J1_RIGHT:  send_gui_action("J1: RIGHT");  break;
-            case J1_CENTER: send_gui_action("J1: CENTER"); break;
+         if (caps_lock){
+            switch(current_j1) {
+               case J1_UP:
+                  send_gui_action("J1: CAPS UP");
+                  break;
+
+               case J1_DOWN:
+                  send_gui_action("J1: CAPS DOWN");
+                  break;
+
+               case J1_LEFT:
+                  send_gui_action("J1: CAPS LEFT");
+                  break;
+
+               case J1_RIGHT:
+                  send_gui_action("J1: CAPS RIGHT");
+                  break;
+
+               case J1_CENTER:
+                  send_gui_action("J1: CENTER");
+                  break;
+            }
+         } 
+         else if(button_down) {
+            switch(current_j1) {
+               case J1_UP:
+                  send_gui_action("J1: BUTTON UP");
+                  break;
+
+               case J1_DOWN:
+                  send_gui_action("J1: BUTTON DOWN");
+                  break;
+
+               case J1_LEFT:
+                  send_gui_action("J1: BUTTON LEFT");
+                  break;
+
+               case J1_RIGHT:
+                  send_gui_action("J1: BUTTON RIGHT");
+                  break;
+
+               case J1_CENTER:
+                  send_gui_action("J1: CENTER");
+                  break;
+            }
+         } 
+         else {
+            switch(current_j1) {
+               case J1_UP:
+                  send_gui_action("J1: UP");
+                  break;
+
+               case J1_DOWN:
+                  send_gui_action("J1: DOWN");
+                  break;
+
+               case J1_LEFT:
+                  send_gui_action("J1: LEFT");
+                  break;
+
+               case J1_RIGHT:
+                  send_gui_action("J1: RIGHT");
+                  break;
+
+               case J1_CENTER:
+                  send_gui_action("J1: CENTER");
+                  break;
+            }
          }
          last_j1_sent = current_j1;
       }
@@ -393,80 +529,131 @@ int main() {
          last_consumed_dir = Joystick::CENTER;
       }
 
-
-      if (armed_dir != Joystick::CENTER){
-         // L-JOYSTICK BUTTON DOWN
-         if (btn) {
-            if (armed_dir == Joystick::UP)         send_key(0x38, false); // /
-            if (armed_dir == Joystick::DOWN)       send_key(0x33, true);  // :
-            if (armed_dir == Joystick::LEFT)       send_key(0x25, true);  // *
-            if (armed_dir == Joystick::RIGHT)      send_key(0x2e, false); // =
-            if (armed_dir == Joystick::UP_LEFT)    send_key(0x2e, true);  // +
-            if (armed_dir == Joystick::UP_RIGHT)   send_key(0x2d, false); // - 
-            if (armed_dir == Joystick::DOWN_LEFT)  send_key(0x34, true);  // "
-            if (armed_dir == Joystick::DOWN_RIGHT) send_key(0x34, false); // '
+      // J1 BUTTON UP
+      if (!button_down) {
+         // L-JOYSTICK UP
+         if (up) {
+            if (armed_dir == Joystick::UP) send_key(0x1a);               // w
+            if (armed_dir == Joystick::UP_RIGHT) send_key(0x33, true);   // :
+            if (armed_dir == Joystick::RIGHT) send_key(0x37);            // .
+            if (armed_dir == Joystick::DOWN_RIGHT) send_key(0x34, true); // "
+            if (armed_dir == Joystick::DOWN) send_key(0x14);             // q
+            if (armed_dir == Joystick::DOWN_LEFT) send_key(0x34);        // '
+            if (armed_dir == Joystick::LEFT) send_key(0x36);             // ,
+            if (armed_dir == Joystick::UP_LEFT) send_key(0x33);          // ;
          }
 
+         // L-JOYSTICK DOWN -- FINISHED
+         else if (down) {
+            if (armed_dir == Joystick::UP) send_key(0x12);               // o
+            if (armed_dir == Joystick::UP_RIGHT) send_key(0x1c);         // y
+            if (armed_dir == Joystick::RIGHT) send_key(0x08);            // e
+            if (armed_dir == Joystick::DOWN_RIGHT) send_key(0x11);       // n
+            if (armed_dir == Joystick::DOWN) send_key(0x04);             // a
+            if (armed_dir == Joystick::DOWN_LEFT) send_key(0x17);        // t
+            if (armed_dir == Joystick::LEFT) send_key(0x0c);             // i
+            if (armed_dir == Joystick::UP_LEFT) send_key(0x18);          // u
+         }
+
+         // L-JOYSTICK RIGHT -- FINISHED
+         else if (right) {
+            if (armed_dir == Joystick::UP) send_key(0x0e);               // k
+            if (armed_dir == Joystick::UP_RIGHT) send_key(0x06);         // c
+            if (armed_dir == Joystick::RIGHT) send_key(0x0f);            // l
+            if (armed_dir == Joystick::DOWN_RIGHT) send_key(0x15);       // r
+            if (armed_dir == Joystick::DOWN) send_key(0x0d);             // j
+            if (armed_dir == Joystick::DOWN_LEFT) send_key(0x16);        // s
+            if (armed_dir == Joystick::LEFT) send_key(0x0b);             // h
+            if (armed_dir == Joystick::UP_LEFT) send_key(0x07);          // d
+         }
+
+         // L-JOYSTICK LEFT -- FINISHED
+         else if (left) {
+            if (armed_dir == Joystick::UP) send_key(0x09);               // f
+            if (armed_dir == Joystick::UP_RIGHT) send_key(0x19);         // v
+            if (armed_dir == Joystick::RIGHT) send_key(0x13);            // p
+            if (armed_dir == Joystick::DOWN_RIGHT) send_key(0x1b);       // x
+            if (armed_dir == Joystick::DOWN) send_key(0x0a);             // g
+            if (armed_dir == Joystick::DOWN_LEFT) send_key(0x10);        // m
+            if (armed_dir == Joystick::LEFT) send_key(0x1d);             // z
+            if (armed_dir == Joystick::UP_LEFT) send_key(0x05);          // b
+         }
+
+         // L-JOYSTICK BUTTON UP (NO INPUT)
+         else {
+            if (armed_dir == Joystick::UP) send_key(0x2a);               // BACKSPACE
+            if (armed_dir == Joystick::UP_RIGHT) send_key(0x38, true);   // ?
+            if (armed_dir == Joystick::RIGHT) send_key(0x28);            // ENTER
+            if (armed_dir == Joystick::DOWN_RIGHT) send_key(0x29);       // ESC
+            if (armed_dir == Joystick::DOWN) send_key(0x2c);             // SPACE
+            if (armed_dir == Joystick::DOWN_LEFT) send_key(0x21, true);  // $
+            if (armed_dir == Joystick::LEFT) send_key(0x2b);             // TAB
+            if (armed_dir == Joystick::UP_LEFT) send_key(0x1e, true);    // !
+         }
+      }
+      // J1 BUTTON DOWN
+      else {
          // L-JOYSTICK UP
-         else if (up) {
-            if (armed_dir == Joystick::UP)         send_key(0x1a); // w
-            if (armed_dir == Joystick::DOWN)       send_key(0x14); // q
-            // if (dir == Joystick::LEFT)       send_key(0x); // 
-            if (armed_dir == Joystick::RIGHT)      send_key(0x37, false); // .
-            if (armed_dir == Joystick::UP_LEFT)    send_key(0x36, false); // ,
-            if (armed_dir == Joystick::UP_RIGHT)   send_key(0x33, false); // ;
-            if (armed_dir == Joystick::DOWN_LEFT)  send_key(0x31, false); // '\'
-            if (armed_dir == Joystick::DOWN_RIGHT) send_key(0x31, true);  // |
+         if (up) {
+            if (armed_dir == Joystick::UP) send_key(0x2e); // =
+            if (armed_dir == Joystick::UP_RIGHT) send_key(0x2e, true); // +
+            if (armed_dir == Joystick::RIGHT) send_key(0x26); // 9
+            if (armed_dir == Joystick::DOWN_RIGHT) send_key(0x2d); // -
+            if (armed_dir == Joystick::DOWN) send_key(0x25, true); // *
+            if (armed_dir == Joystick::DOWN_LEFT) send_key(0x38); // /
+            if (armed_dir == Joystick::LEFT) send_key(0x25); // 8
+            if (armed_dir == Joystick::UP_LEFT) send_key(0x22, true); // %
          }
 
          // L-JOYSTICK DOWN
          else if (down) {
-            if (armed_dir == Joystick::UP)         send_key(0x12); // o
-            if (armed_dir == Joystick::DOWN)       send_key(0x04); // a
-            if (armed_dir == Joystick::LEFT)       send_key(0x0c); // i
-            if (armed_dir == Joystick::RIGHT)      send_key(0x08); // e
-            if (armed_dir == Joystick::UP_LEFT)    send_key(0x18); // u
-            if (armed_dir == Joystick::UP_RIGHT)   send_key(0x1c); // y
-            if (armed_dir == Joystick::DOWN_LEFT)  send_key(0x17); // t
-            if (armed_dir == Joystick::DOWN_RIGHT) send_key(0x11); // n
+            if (armed_dir == Joystick::UP) send_key(0x52); // UP ARROW
+            if (armed_dir == Joystick::UP_RIGHT) send_key(0x4b); // PAGE UP
+            if (armed_dir == Joystick::RIGHT) send_key(0x4f); // RIGHT ARROW
+            if (armed_dir == Joystick::DOWN_RIGHT) send_key(0x4e); // PAGE DOWN
+            if (armed_dir == Joystick::DOWN) send_key(0x51); // DOWN ARROW
+            if (armed_dir == Joystick::DOWN_LEFT) send_key(0x4a); // HOME
+            if (armed_dir == Joystick::LEFT) send_key(0x50); // LEFT ARROW
+            if (armed_dir == Joystick::UP_LEFT) send_key(0x4d); // END
          }
 
          // L-JOYSTICK RIGHT
          else if (right) {
-            if (armed_dir == Joystick::UP)         send_key(0x16); // s
-            if (armed_dir == Joystick::DOWN)       send_key(0x0b); // h
-            if (armed_dir == Joystick::LEFT)       send_key(0x15); // r
-            if (armed_dir == Joystick::RIGHT)      send_key(0x07); // d
-            if (armed_dir == Joystick::UP_LEFT)    send_key(0x0f); // l
-            if (armed_dir == Joystick::UP_RIGHT)   send_key(0x06); // c
-            if (armed_dir == Joystick::DOWN_LEFT)  send_key(0x10); // m
-            if (armed_dir == Joystick::DOWN_RIGHT) send_key(0x1b); // x
+            if (armed_dir == Joystick::UP) send_key(0x37, true); // >
+            if (armed_dir == Joystick::UP_RIGHT) send_key(0x30, true); // }
+            if (armed_dir == Joystick::RIGHT) send_key(0x27, true); // )
+            if (armed_dir == Joystick::DOWN_RIGHT) send_key(0x30); // ]
+            if (armed_dir == Joystick::DOWN) send_key(0x36, true); // <
+            if (armed_dir == Joystick::DOWN_LEFT) send_key(0x2f); // [
+            if (armed_dir == Joystick::LEFT) send_key(0x26, true); // (
+            if (armed_dir == Joystick::UP_LEFT) send_key(0x2f, true); // {
          }
 
-         // L-JOYSTICK LEFT
+         // L-JOYSTICK LEFT -- FINISHED
          else if (left) {
-            if (armed_dir == Joystick::UP)         send_key(0x09); // f
-            if (armed_dir == Joystick::DOWN)       send_key(0x0a); // g
-            if (armed_dir == Joystick::LEFT)       send_key(0x1d); // z
-            if (armed_dir == Joystick::RIGHT)      send_key(0x13); // p
-            if (armed_dir == Joystick::UP_LEFT)    send_key(0x05); // b
-            if (armed_dir == Joystick::UP_RIGHT)   send_key(0x19); // v
-            if (armed_dir == Joystick::DOWN_LEFT)  send_key(0x0e); // k
-            if (armed_dir == Joystick::DOWN_RIGHT) send_key(0x0d); // j
+            if (armed_dir == Joystick::UP) send_key(0x27); // 0
+            if (armed_dir == Joystick::UP_RIGHT) send_key(0x1e); // 1
+            if (armed_dir == Joystick::RIGHT) send_key(0x1f); // 2
+            if (armed_dir == Joystick::DOWN_RIGHT) send_key(0x20); // 3
+            if (armed_dir == Joystick::DOWN) send_key(0x21); // 4
+            if (armed_dir == Joystick::DOWN_LEFT) send_key(0x22); // 5
+            if (armed_dir == Joystick::LEFT) send_key(0x23); // 6
+            if (armed_dir == Joystick::UP_LEFT) send_key(0x24); // 7
          }
 
          // L-JOYSTICK BUTTON UP (NO INPUT)
-         else{
-            if (armed_dir == Joystick::UP)         send_key(0x2a, false); // BACKSPACE
-            if (armed_dir == Joystick::DOWN)       send_key(0x2c, false); // SPACE
-            if (armed_dir == Joystick::LEFT)       send_key(0x29, false); // ESCAPE
-            if (armed_dir == Joystick::RIGHT)      send_key(0x28, false); // ENTER
-            if (armed_dir == Joystick::UP_LEFT)    send_key(0x1e, true);  // !
-            if (armed_dir == Joystick::UP_RIGHT)   send_key(0x38, true);  // ?
-            if (armed_dir == Joystick::DOWN_LEFT)  send_key(0x21, true);  // $
-            if (armed_dir == Joystick::DOWN_RIGHT) send_key(0x1f, true);  // @
+         else {
+            if (armed_dir == Joystick::UP) send_key(0x2a, false, true); // CTRL + BACKSPACE
+            if (armed_dir == Joystick::UP_RIGHT) send_key(0x02); // SHIFT
+            if (armed_dir == Joystick::RIGHT) send_key(0x01); // CTRL
+            if (armed_dir == Joystick::DOWN_RIGHT) send_key(0x31); // '\'
+            if (armed_dir == Joystick::DOWN) send_key(0x08); // META
+            if (armed_dir == Joystick::DOWN_LEFT) send_key(0x31, true); // |
+            if (armed_dir == Joystick::LEFT) send_key(0x04); // ALT
+            if (armed_dir == Joystick::UP_LEFT) send_key(0x1e); // !
          }
       }
+      
       armed_dir = Joystick::CENTER;
       // watchdog_update();
       // sleep_ms(1);
