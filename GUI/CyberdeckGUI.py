@@ -15,19 +15,19 @@ j1_button_down = False
 cap_status = 0
 letters_per_block = [ # BUTTON UP
                      ['w', ':', '.', '\"', 'q', '\'', ',', ';'], # UP
-                     ['o', 'y', 'e', 'n', 'a', 't', 'i', 'u'],  # DOWN
-                     ['k', 'c', 'l', 'r', 'j', 's', 'h', 'd'],  # RIGHT
-                     ['f', 'v', 'p', 'x', 'g', 'm', 'z', 'b'],  # LEFT
+                     ['o', 'y', 'e', 'n', 'a', 't', 'i', 'u'],   # DOWN
+                     ['k', 'c', 'l', 'r', 'j', 's', 'h', 'd'],   # RIGHT
+                     ['f', 'v', 'p', 'x', 'g', 'm', 'z', 'b'],   # LEFT
                       # CAPSLOCK
-                     ['w', ';', '.', '|', 'q', '\\', '*', ','], # UP
-                     ['O', 'Y', 'E', 'N', 'A', 'T', 'I', 'U'],  # down
-                     ['K', 'C', 'L', 'R', 'J', 'S', 'H', 'D'],  # right
-                     ['F', 'V', 'P', 'X', 'G', 'M', 'Z', 'B'],  # left
+                     ['w', ';', '.', '|', 'q', '\\', '*', ','],  # UP
+                     ['O', 'Y', 'E', 'N', 'A', 'T', 'I', 'U'],   # down
+                     ['K', 'C', 'L', 'R', 'J', 'S', 'H', 'D'],   # right
+                     ['F', 'V', 'P', 'X', 'G', 'M', 'Z', 'B'],   # left
                       # BUTTON DOWN
-                     ['=', '+', '9', '-', '*', '/', '8', '%'],  # UP
+                     ['=', '+', '9', '-', '*', '/', '8', '%'],   # UP
                      ['UP', 'PGUP', 'RHT', 'PGDN', 'DWN', 'HOME', 'LFT', 'END'],  # DOWN
-                     ['>', '}', ')', ']', '<', '[', '(', '{'],  # RIGHT
-                     ['0', '1', '2', '3', '4', '5', '6', '7']   # LEFT
+                     ['>', '}', ')', ']', '<', '[', '(', '{'],   # RIGHT
+                     ['0', '1', '2', '3', '4', '5', '6', '7']    # LEFT
                     ]
 
 class RadialOverlay(QWidget):
@@ -179,7 +179,6 @@ ser = serial.Serial(SERIAL_PORT, BAUD, timeout=0)
 
 def poll_serial():
     global current_block
-    global cap_status
 
     while ser.in_waiting:
         line = ser.readline().decode(errors="ignore").strip()
@@ -188,34 +187,30 @@ def poll_serial():
             continue
 
         if "J1:" in line:
-            if "CAPS ON" in line:
-                cap_status = 1
-            else:
-                cap_status = 0
-
             if "CENTER" in line:
                 overlay.hide_overlay()
             else:
                 overlay.show_overlay()
 
-            if "BUTTON" not in line and not cap_status:
-                if "UP" in line:
-                    current_block = 0
-                elif "DOWN" in line:
-                    current_block = 1
-                elif "RIGHT" in line:
-                    current_block = 2
-                elif "LEFT" in line:
-                    current_block = 3
-            elif cap_status == 1:
-                if "UP" in line:
-                    current_block = 4
-                elif "DOWN" in line:
-                    current_block = 5
-                elif "RIGHT" in line:
-                    current_block = 6
-                elif "LEFT" in line:
-                    current_block = 7
+            if "BUTTON" not in line:
+                if "CAPS" not in line:
+                    if "UP" in line:
+                        current_block = 0
+                    elif "DOWN" in line:
+                        current_block = 1
+                    elif "RIGHT" in line:
+                        current_block = 2
+                    elif "LEFT" in line:
+                        current_block = 3
+                elif "CAPS" in line:
+                    if "UP" in line:
+                        current_block = 4
+                    elif "DOWN" in line:
+                        current_block = 5
+                    elif "RIGHT" in line:
+                        current_block = 6
+                    elif "LEFT" in line:
+                        current_block = 7
             else:
                 if "UP" in line:
                     current_block = 8
