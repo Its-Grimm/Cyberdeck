@@ -25,11 +25,11 @@ letters_per_block = [ # BUTTON UP
                      ['F', 'V', 'P', 'X', 'G', 'M', 'Z', 'B'],   # left
                       # BUTTON DOWN
                      ['=', '+', '9', '-', '*', '/', '8', '%'],   # UP
-                     ['UP', 'PGUP', 'RHT', 'PGDN', 'DWN', 'HOME', 'LFT', 'END'],  # DOWN
+                     ['UP', 'PUP', 'RHT', 'PDN', 'DWN', 'HME', 'LFT', 'END'],  # DOWN
                      ['>', '}', ')', ']', '<', '[', '(', '{'],   # RIGHT
                      ['0', '1', '2', '3', '4', '5', '6', '7'],   # LEFT
                      # J1 BUTTON UP
-                     ['BCK', '?', 'ENT', 'SPC', '$', 'TAB', '!']
+                     ['BCK', '?', 'ENT', 'ESC', 'SPC', '$', 'TAB', '!']
                     ]
 
 class RadialOverlay(QWidget):
