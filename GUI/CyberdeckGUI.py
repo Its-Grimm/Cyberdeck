@@ -200,47 +200,51 @@ def poll_serial():
             continue
 
         if "J1:" in line:
+            if "CAPS ON" in line:
+                caps_mode = 1
+                continue
+            elif "CAPS OFF" in line:
+                caps_mode = 0
+                continue
+
             if "CENTER" in line:
                 overlay.hide_overlay()
             else:
                 overlay.show_overlay()
             
-            if "CAPS ON" in line:
-                caps_mode = 1
-            elif "CAPS OFF" in line:
-                caps_mode = 0
+            # CAPS ONLY
+            if "CAPS" in line:
+                if "UP" in line:
+                    current_block = 4
+                elif "DOWN" in line:
+                    current_block = 5
+                elif "RIGHT" in line:
+                    current_block = 6
+                elif "LEFT" in line:
+                    current_block = 7
 
-            if "BUTTON" not in line:
-                if "CAPS" not in line:
-                    if "UP" in line:
-                        current_block = 0
-                    elif "DOWN" in line:
-                        current_block = 1
-                    elif "RIGHT" in line:
-                        current_block = 2
-                    elif "LEFT" in line:
-                        current_block = 3
-                elif "CAPS" in line:
-                    if "UP" in line:
-                        current_block = 4
-                    elif "DOWN" in line:
-                        current_block = 5
-                    elif "RIGHT" in line:
-                        current_block = 6
-                    elif "LEFT" in line:
-                        current_block = 7
+            # BUTTON ONLY
+            elif "BUTTON" in line:
+                if "UP" in line:
+                    current_block = 8
+                elif "DOWN" in line:
+                    current_block = 9
+                elif "RIGHT" in line:
+                    current_block = 10
+                elif "LEFT" in line:
+                    current_block = 11
+
+            # NORMAL
             else:
-                if "CAPS BUTTON" in line:
-                    current_block = 13
-                else:
-                    if "UP" in line:
-                        current_block = 8
-                    elif "DOWN" in line:
-                        current_block = 9
-                    elif "RIGHT" in line:
-                        current_block = 10
-                    elif "LEFT" in line:
-                        current_block = 11
+                if "UP" in line:
+                    current_block = 0
+                elif "DOWN" in line:
+                    current_block = 1
+                elif "RIGHT" in line:
+                    current_block = 2
+                elif "LEFT" in line:
+                    current_block = 3
+                 
             overlay.update()
 
         if "DIAL:" in line:

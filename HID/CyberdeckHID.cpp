@@ -396,17 +396,16 @@ int main() {
          if (waiting_second_click && (now - last_j1_click) < DOUBLE_CLICK_MS) {
             caps_lock = !caps_lock;
             waiting_second_click = false;
+            if (caps_lock){
+               send_gui_action("J1: CAPS ON");
+            }
+            else{
+               send_gui_action("J1: CAPS OFF");
+            }
          } 
          else {
             waiting_second_click = true;
             last_j1_click = now;
-         }
-
-         if (caps_lock){
-            send_gui_action("J1: CAPS ON");
-         }
-         else{
-            send_gui_action("J1: CAPS OFF");
          }
       }
 
