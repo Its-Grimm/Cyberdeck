@@ -164,6 +164,16 @@ uint8_t last_key = 0;
 bool key_down = false;
 uint64_t last_send_time = 0;
 
+// ---------------- GUI ----------------
+// Sends joystick direction to /dev/ttyACM0 through CDC
+void send_gui_action(const char* action){
+   if (!tud_cdc_connected()) return;
+
+   tud_cdc_write_str(action);
+   tud_cdc_write_str("\n");
+   tud_cdc_write_flush(); 
+}
+
 void send_key(
    uint8_t key,
    bool shift = false,
@@ -190,7 +200,7 @@ void send_key(
       modifier |= KEYBOARD_MODIFIER_LEFTALT;
    }
 
-   if (pending_gui){
+   if (pending_gui){;
       modifier |= KEYBOARD_MODIFIER_LEFTGUI;
    }
    if (shift){
@@ -212,12 +222,6 @@ void send_key(
       modifier ^= KEYBOARD_MODIFIER_LEFTSHIFT;
    }
 
-   bool is_letter = (key >= 0x04 && key <= 0x1d);
-
-   if (caps_lock && is_letter) {
-      modifier ^= KEYBOARD_MODIFIER_LEFTSHIFT;
-   }
-
    uint8_t keycode[6] = { key };
 
    tud_hid_keyboard_report(REPORT_ID_KEYBOARD, modifier, keycode);
@@ -227,21 +231,13 @@ void send_key(
 
    last_send_time = millis();
 
-   pending_shift = false;
-   pending_ctrl  = false;
-   pending_alt   = false;
-   pending_gui   = false;
-   send_gui_action("MOD: CLEAR");
-}
-
-// ---------------- GUI ----------------
-// Sends joystick direction to /dev/ttyACM0 through CDC
-void send_gui_action(const char* action){
-   if (!tud_cdc_connected()) return;
-
-   tud_cdc_write_str(action);
-   tud_cdc_write_str("\n");
-   tud_cdc_write_flush(); 
+   if (pending_shift || pending_ctrl || pending_alt || pending_gui){
+      pending_shift = false;
+      pending_ctrl  = false;
+      pending_alt   = false;
+      pending_gui   = false;
+      send_gui_action("MOD: CLEAR");
+   }
 }
 
 const char* j1_dir_to_string(int dir){
@@ -522,6 +518,8 @@ int main() {
       joystick.update();
 
       Joystick::Direction8 dir = joystick.direction();
+      stable_dir = dir;
+
       static Joystick::Direction8 last_sent_dir = Joystick::CENTER;
 
       if (dir != last_sent_dir) {
@@ -529,21 +527,20 @@ int main() {
          last_sent_dir = dir;
       }
 
-
-      stable_dir = dir;
-      if (stable_dir != Joystick::CENTER && armed_dir == Joystick::CENTER){
+      if (stable_dir != Joystick::CENTER && !dir_event_consumed){
          armed_dir = stable_dir;
+         dir_event_consumed = true;
       }
-      if (stable_dir == Joystick::CENTER){
+      else{
          armed_dir = Joystick::CENTER;
       }
 
-      bool dirChanged = joystick.changed();
-
-      if (dir == Joystick::CENTER){
+      if (stable_dir == Joystick::CENTER){
          dir_event_consumed = false;
-         last_consumed_dir = Joystick::CENTER;
       }
+
+
+      bool dirChanged = joystick.changed();
 
       // J1 BUTTON UP
       if (!button_down) {
@@ -597,14 +594,38 @@ int main() {
 
          // L-JOYSTICK BUTTON UP (NO INPUT)
          else {
-            if (armed_dir == Joystick::UP)         send_key(0x2a);       // BACKSPACE
-            if (armed_dir == Joystick::UP_RIGHT)   send_key(0x38, true); // ?
-            if (armed_dir == Joystick::RIGHT)      send_key(0x28);       // ENTER
-            if (armed_dir == Joystick::DOWN_RIGHT) send_key(0x29);       // ESC
-            if (armed_dir == Joystick::DOWN)       send_key(0x2c);       // SPACE
-            if (armed_dir == Joystick::DOWN_LEFT)  send_key(0x21, true); // $
-            if (armed_dir == Joystick::LEFT)       send_key(0x2b);       // TAB
-            if (armed_dir == Joystick::UP_LEFT)    send_key(0x1e, true); // !
+            if (caps_lock){
+               if (armed_dir == Joystick::UP) send_key(0x2a, false, true); // CTRL + BACKSPACE
+               if (armed_dir == Joystick::UP_RIGHT) {
+                  pending_shift = true;
+                  send_gui_action("MOD: SHIFT");
+               }
+               if (armed_dir == Joystick::RIGHT){
+                  pending_ctrl = true;
+                  send_gui_action("MOD: CTRL");
+               }
+               if (armed_dir == Joystick::DOWN_RIGHT) send_key(0x31);              // '\'
+               if (armed_dir == Joystick::DOWN){
+                  pending_gui = true;
+                  send_gui_action("MOD: META");
+               }
+               if (armed_dir == Joystick::DOWN_LEFT) send_key(0x31, true);        // |
+               if (armed_dir == Joystick::LEFT){
+                  pending_alt = true;
+                  send_gui_action("MOD: ALT");
+               }
+               if (armed_dir == Joystick::UP_LEFT) send_key(0x1e, true);        // !
+            }
+            else{
+               if (armed_dir == Joystick::UP)         send_key(0x2a);       // BACKSPACE
+               if (armed_dir == Joystick::UP_RIGHT)   send_key(0x38, true); // ?
+               if (armed_dir == Joystick::RIGHT)      send_key(0x28);       // ENTER
+               if (armed_dir == Joystick::DOWN_RIGHT) send_key(0x29);       // ESC
+               if (armed_dir == Joystick::DOWN)       send_key(0x2c);       // SPACE
+               if (armed_dir == Joystick::DOWN_LEFT)  send_key(0x21, true); // $
+               if (armed_dir == Joystick::LEFT)       send_key(0x2b);       // TAB
+               if (armed_dir == Joystick::UP_LEFT)    send_key(0x1e, true); // !
+            }
          }
       }
       // J1 BUTTON DOWN
@@ -655,30 +676,6 @@ int main() {
             if (armed_dir == Joystick::DOWN_LEFT)  send_key(0x22); // 5
             if (armed_dir == Joystick::LEFT)       send_key(0x23); // 6
             if (armed_dir == Joystick::UP_LEFT)    send_key(0x24); // 7
-         }
-
-         // L-JOYSTICK BUTTON UP (NO INPUT)
-         else {
-            if (armed_dir == Joystick::UP)         send_key(0x2a, false, true); // CTRL + BACKSPACE
-            if (armed_dir == Joystick::UP_RIGHT) {
-               pending_shift = true;
-               send_gui_action("MOD: SHIFT");
-            }
-            if (armed_dir == Joystick::RIGHT){
-               pending_ctrl = true;
-               send_gui_action("MOD: CTRL");
-            }
-            if (armed_dir == Joystick::DOWN_RIGHT) send_key(0x31);              // '\'
-            if (armed_dir == Joystick::DOWN){
-               pending_gui = true;
-               send_gui_action("MOD: META");
-            }
-            if (armed_dir == Joystick::DOWN_LEFT)  send_key(0x31, true);        // |
-            if (armed_dir == Joystick::LEFT){
-               pending_alt = true;
-               send_gui_action("MOD: ALT");
-            }
-            if (armed_dir == Joystick::UP_LEFT)    send_key(0x1e, true);        // !
          }
       }
       
