@@ -229,14 +229,17 @@ def poll_serial():
                     elif "LEFT" in line:
                         current_block = 7
             else:
-                if "UP" in line:
-                    current_block = 8
-                elif "DOWN" in line:
-                    current_block = 9
-                elif "RIGHT" in line:
-                    current_block = 10
-                elif "LEFT" in line:
-                    current_block = 11
+                if "CAPS BUTTON" in line:
+                    current_block = 13
+                else:
+                    if "UP" in line:
+                        current_block = 8
+                    elif "DOWN" in line:
+                        current_block = 9
+                    elif "RIGHT" in line:
+                        current_block = 10
+                    elif "LEFT" in line:
+                        current_block = 11
             overlay.update()
 
         if "DIAL:" in line:
@@ -249,8 +252,7 @@ def poll_serial():
 
             if caps_mode == 0:
                 current_block = 12
-            elif caps_mode == 1:
-                current_block = 13
+
             overlay.update()
 
         if "MOD:" in line:

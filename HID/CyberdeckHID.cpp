@@ -437,7 +437,55 @@ int main() {
       }
 
       if (current_j1 != last_j1_sent) {
-         if (caps_lock){
+         if (button_down) {
+            if (caps_lock){
+               switch(current_j1) {
+                  case J1_UP:
+                     send_gui_action("J1: CAPS BUTTON UP");
+                     break;
+
+                  case J1_DOWN:
+                     send_gui_action("J1: CAPS BUTTON DOWN");
+                     break;
+
+                  case J1_LEFT:
+                     send_gui_action("J1: CAPS BUTTON LEFT");
+                     break;
+
+                  case J1_RIGHT:
+                     send_gui_action("J1: CAPS BUTTON RIGHT");
+                     break;
+
+                  case J1_CENTER:
+                     send_gui_action("J1: CENTER");
+                     break;
+               }
+            }
+            else{
+               switch(current_j1) {
+                  case J1_UP:
+                     send_gui_action("J1: BUTTON UP");
+                     break;
+
+                  case J1_DOWN:
+                     send_gui_action("J1: BUTTON DOWN");
+                     break;
+
+                  case J1_LEFT:
+                     send_gui_action("J1: BUTTON LEFT");
+                     break;
+
+                  case J1_RIGHT:
+                     send_gui_action("J1: BUTTON RIGHT");
+                     break;
+
+                  case J1_CENTER:
+                     send_gui_action("J1: CENTER");
+                     break;
+               }
+            }
+         }
+         else if (caps_lock){
             switch(current_j1) {
                case J1_UP:
                   send_gui_action("J1: CAPS UP");
@@ -453,29 +501,6 @@ int main() {
 
                case J1_RIGHT:
                   send_gui_action("J1: CAPS RIGHT");
-                  break;
-
-               case J1_CENTER:
-                  send_gui_action("J1: CENTER");
-                  break;
-            }
-         } 
-         else if(button_down) {
-            switch(current_j1) {
-               case J1_UP:
-                  send_gui_action("J1: BUTTON UP");
-                  break;
-
-               case J1_DOWN:
-                  send_gui_action("J1: BUTTON DOWN");
-                  break;
-
-               case J1_LEFT:
-                  send_gui_action("J1: BUTTON LEFT");
-                  break;
-
-               case J1_RIGHT:
-                  send_gui_action("J1: BUTTON RIGHT");
                   break;
 
                case J1_CENTER:
@@ -506,6 +531,7 @@ int main() {
                   break;
             }
          }
+
          last_j1_sent = current_j1;
       }
 
