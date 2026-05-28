@@ -13,13 +13,15 @@ BAUD = 115200
 
 j1_button_down = False
 cap_status = 0
+radial_menu_colour = QColor(0, 0, 0, 160)
+pending_modifier = ""
 letters_per_block = [ # BUTTON UP
                      ['w', ':', '.', '\"', 'q', '\'', ',', ';'], # UP
                      ['o', 'y', 'e', 'n', 'a', 't', 'i', 'u'],   # DOWN
                      ['k', 'c', 'l', 'r', 'j', 's', 'h', 'd'],   # RIGHT
                      ['f', 'v', 'p', 'x', 'g', 'm', 'z', 'b'],   # LEFT
                       # CAPSLOCK
-                     ['W', ';', '.', '|', 'Q', '\\', '*', ','],  # UP
+                     ['W', ':', '.', '\"', 'Q', '\'', ',', ';'], # UP
                      ['O', 'Y', 'E', 'N', 'A', 'T', 'I', 'U'],   # down
                      ['K', 'C', 'L', 'R', 'J', 'S', 'H', 'D'],   # right
                      ['F', 'V', 'P', 'X', 'G', 'M', 'Z', 'B'],   # left
@@ -29,7 +31,9 @@ letters_per_block = [ # BUTTON UP
                      ['>', '}', ')', ']', '<', '[', '(', '{'],   # RIGHT
                      ['0', '1', '2', '3', '4', '5', '6', '7'],   # LEFT
                      # J1 BUTTON UP
-                     ['BCK', '?', 'ENT', 'ESC', 'SPC', '$', 'TAB', '!']
+                     ['BCK', '?', 'ENT', 'ESC', 'SPC', '$', 'TAB', '!'],
+                     # J1 BUTTON UP + CAPSLOCK
+                     ['CBCK', 'SHFT', 'CTRL', '\\', 'META', '|', 'ALT', '!']
                     ]
 
 class RadialOverlay(QWidget):
@@ -97,7 +101,7 @@ class RadialOverlay(QWidget):
         cx, cy = w // 2, h // 2
         radius = 85
 
-        painter.setBrush(QColor(0, 0, 0, 160))
+        painter.setBrush(radial_menu_colour) # Sets radial menu colour
         painter.setPen(Qt.PenStyle.NoPen)
         painter.drawEllipse(0, 0, w, h)
 
@@ -184,6 +188,8 @@ ser = serial.Serial(SERIAL_PORT, BAUD, timeout=0)
 
 def poll_serial():
     global current_block
+    global pending_modifier
+    global radial_menu_colour
 
     while ser.in_waiting:
         line = ser.readline().decode(errors="ignore").strip()
@@ -237,6 +243,25 @@ def poll_serial():
 
             current_block = 12                
             overlay.update()
+
+        if "MOD:" in line:
+            if "SHIFT" in line:
+                pending_modifier = "SHIFT"
+                radial_menu_colour = QColor(50, 0, 0, 160)
+            elif "CTRL" in line:
+                pending_modifier = "CTRL"
+                radial_menu_colour = QColor(0, 0, 50, 160)
+            elif "ALT" in line:
+                pending_modifier = "ALT"
+                radial_menu_colour = QColor(0, 50, 0, 160)
+            elif "META" in line:
+                pending_modifier = "META"
+                radial_menu_colour = QColor(50, 0, 50, 160)
+            elif "CLEAR" in line:
+                pending_modifier = ""
+                radial_menu_colour = QColor(0, 0, 0, 160)
+
+            overlay.update() 
 
 
 

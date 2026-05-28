@@ -114,15 +114,20 @@ void send_scroll(int8_t amount){
 
 
 // ---------------- J1 ----------------
-const int j1_up_pin =     14; // USE GP** NUMBER, NOT PIN NUMBER
-const int j1_down_pin =   15;
-const int j1_left_pin =   12;
-const int j1_right_pin =  13;
+const int j1_up_pin     = 14; // USE GP** NUMBER, NOT PIN NUMBER
+const int j1_down_pin   = 15;
+const int j1_left_pin   = 12;
+const int j1_right_pin  = 13;
 const int j1_button_pin = 11;
 
 const uint64_t DOUBLE_CLICK_MS = 250;
 
 bool caps_lock = false;
+
+bool pending_shift = false;
+bool pending_ctrl  = false;
+bool pending_alt   = false;
+bool pending_gui   = false;
 
 uint64_t last_j1_click = 0;
 bool waiting_second_click = false;
@@ -173,20 +178,38 @@ void send_key(
 
    uint8_t modifier = 0;
 
-   if (shift){
+   if (pending_shift){
       modifier |= KEYBOARD_MODIFIER_LEFTSHIFT;
    }
 
-   if (control){
+   if (pending_ctrl){
       modifier |= KEYBOARD_MODIFIER_LEFTCTRL;
    }
 
-   if (alt){
+   if (pending_alt){
       modifier |= KEYBOARD_MODIFIER_LEFTALT;
    }
 
+   if (pending_gui){
+      modifier |= KEYBOARD_MODIFIER_LEFTGUI;
+   }
+   if (shift){
+      modifier |= KEYBOARD_MODIFIER_LEFTSHIFT;
+   }
+   if (control){
+      modifier |= KEYBOARD_MODIFIER_LEFTCTRL;
+   }
+   if (alt){
+      modifier |= KEYBOARD_MODIFIER_LEFTALT;
+   }
    if (gui){
       modifier |= KEYBOARD_MODIFIER_LEFTGUI;
+   }
+
+   bool is_letter = (key >= 0x04 && key <= 0x1d);
+
+   if (caps_lock && is_letter) {
+      modifier ^= KEYBOARD_MODIFIER_LEFTSHIFT;
    }
 
    bool is_letter = (key >= 0x04 && key <= 0x1d);
@@ -203,6 +226,12 @@ void send_key(
    last_key = key;
 
    last_send_time = millis();
+
+   pending_shift = false;
+   pending_ctrl  = false;
+   pending_alt   = false;
+   pending_gui   = false;
+   send_gui_action("MOD: CLEAR");
 }
 
 // ---------------- GUI ----------------
@@ -631,13 +660,25 @@ int main() {
          // L-JOYSTICK BUTTON UP (NO INPUT)
          else {
             if (armed_dir == Joystick::UP)         send_key(0x2a, false, true); // CTRL + BACKSPACE
-            if (armed_dir == Joystick::UP_RIGHT)   send_key(0x02);              // SHIFT
-            if (armed_dir == Joystick::RIGHT)      send_key(0x01);              // CTRL
+            if (armed_dir == Joystick::UP_RIGHT) {
+               pending_shift = true;
+               send_gui_action("MOD: SHIFT");
+            }
+            if (armed_dir == Joystick::RIGHT){
+               pending_ctrl = true;
+               send_gui_action("MOD: CTRL");
+            }
             if (armed_dir == Joystick::DOWN_RIGHT) send_key(0x31);              // '\'
-            if (armed_dir == Joystick::DOWN)       send_key(0x08);              // META
+            if (armed_dir == Joystick::DOWN){
+               pending_gui = true;
+               send_gui_action("MOD: META");
+            }
             if (armed_dir == Joystick::DOWN_LEFT)  send_key(0x31, true);        // |
-            if (armed_dir == Joystick::LEFT)       send_key(0x04);              // ALT
-            if (armed_dir == Joystick::UP_LEFT)    send_key(0x1e);              // !
+            if (armed_dir == Joystick::LEFT){
+               pending_alt = true;
+               send_gui_action("MOD: ALT");
+            }
+            if (armed_dir == Joystick::UP_LEFT)    send_key(0x1e, true);        // !
          }
       }
       
