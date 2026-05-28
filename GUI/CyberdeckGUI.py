@@ -190,6 +190,7 @@ def poll_serial():
     global current_block
     global pending_modifier
     global radial_menu_colour
+    global caps_mode
 
     while ser.in_waiting:
         line = ser.readline().decode(errors="ignore").strip()
@@ -202,6 +203,11 @@ def poll_serial():
                 overlay.hide_overlay()
             else:
                 overlay.show_overlay()
+            
+            if "CAPS ON" in line:
+                caps_mode = 1
+            elif "CAPS OFF" in line:
+                caps_mode = 0
 
             if "BUTTON" not in line:
                 if "CAPS" not in line:
@@ -241,7 +247,10 @@ def poll_serial():
             elif "BRIGHTNESS" in line:
                 overlay.show_dial_overlay("BRIGHTNESS")
 
-            current_block = 12                
+            if caps_mode == 0:
+                current_block = 12
+            elif caps_mode == 1:
+                current_block = 13
             overlay.update()
 
         if "MOD:" in line:
@@ -262,7 +271,6 @@ def poll_serial():
                 radial_menu_colour = QColor(0, 0, 0, 160)
 
             overlay.update() 
-
 
 
 timer = QTimer()
