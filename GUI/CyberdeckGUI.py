@@ -13,6 +13,7 @@ BAUD = 115200
 
 j1_button_down = False
 caps_mode = 0
+current_block = 0
 radial_menu_colour = QColor(0, 0, 0, 160)
 pending_modifier = ""
 letters_per_block = [ # BUTTON UP
@@ -252,6 +253,8 @@ def poll_serial():
 
             if caps_mode == 0:
                 current_block = 12
+            else:
+                current_block = 13
 
             overlay.update()
 
