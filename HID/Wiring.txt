@@ -1,0 +1,24 @@
+Scheme:
+Pico -> Input Device
+
+Pico -> J1:
+GND -> COM
+P15 -> MID
+P16 -> RHT
+P17 -> LFT
+P19 -> DWN
+P20 -> UP
+
+Pico -> J2:
+3V3(OUT) -> +5V
+GND -> GND
+P34 -> SW
+P32 -> VRy
+P31 -> VRx
+
+Pico -> Encoder:
+3V3(OUT) -> 5V
+GND -> GND
+P5  -> S1
+P6  -> S2
+P7  -> KEY
